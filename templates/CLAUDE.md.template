@@ -1,0 +1,176 @@
+## DevKit v2.2 — Development Protocol
+
+DevKit is a development harness with opinionated sub-agents, designed to keep your project intact with AI coding best practices. This file is the single source of truth for all conventions. Skills reference it; they do not duplicate it.
+
+---
+
+### Project Map
+
+| Location | Contains |
+|----------|----------|
+| `.devkit/tasks/pending/` | Tasks ready to start — `ls` this directory to see what's available |
+| `.devkit/tasks/active/` | Tasks currently in progress |
+| `.devkit/tasks/archive/` | Completed or rejected tasks with full logs |
+| `docs/design/` | Design documents (requirements + architectural decisions) |
+| `docs/` | All project documentation |
+| Git history | Decisions, discoveries, failed approaches — extractable via trailers |
+
+---
+
+### Task Files
+
+Tasks live in `.devkit/tasks/` as markdown files. **Status is the directory**: moving a file between `pending/`, `active/`, and `archive/` is a status change. Clean git rename, no content modification needed.
+
+No index file. No status field in frontmatter. The filesystem is the status.
+
+#### Filename Format
+
+`{ID}-{PRIORITY}--{slug}.md` -- regex: `^(\d+)-(P\d)--(.+)\.md$`
+
+- `{ID}` -- 3-digit zero-padded sequential number
+- `{PRIORITY}` -- P0 (critical) through P3 (low)
+- `--` -- double-hyphen separator between metadata and slug
+- `{slug}` -- kebab-case short description
+
+Examples: `001-P0--fix-login-redirect.md`, `002-P1--add-auth-middleware.md`
+
+#### Frontmatter
+
+```yaml
+---
+id: 001
+type: feature            # feature | bug | chore | refactor
+priority: P0             # P0 | P1 | P2 | P3
+branch: feature/scope-name
+depends_on: []
+plan: initiative-slug    # or "standalone"
+created: YYYY-MM-DD
+---
+```
+
+No `status` field (directory is status). No `wave` field.
+
+#### Task Body Structure
+
+```markdown
+# Task title
+
+## Description
+
+CONTEXT: What exists now. What the agent will find when it looks.
+ACTIONS: What to do. File paths, function names, concrete operations.
+OUTCOME: What "done" looks like. Testable conditions.
+CONSTRAINTS: What to avoid, what not to touch, performance bounds.
+
+## Log
+
+### Session 1 -- YYYY-MM-DD HH:MM
+
+Starting: reading auth module to understand token flow
+
+Research complete: found 3 middleware layers in api/middleware/
+
+--decision: PyJWT over python-jose -- fewer deps, sufficient for RS256
+
+Implementation complete: auth middleware created, 4 passing tests
+
+--handoff:
+- done: middleware created and tested
+- remaining: integration with SAML provider (task 002)
+- uncertain: token refresh flow needs design decision
+```
+
+#### Structured Log Prefixes
+
+Every log entry states WHAT and WHY. No bare verbs ("Started", "Done").
+
+| Prefix | Purpose |
+|--------|---------|
+| `--decision:` | Choice made and rationale |
+| `--hypothesis:` | Theory being tested |
+| `--tried:` | Approach attempted (especially if it failed, and why) |
+| `--blocker:` | Work cannot continue without external input |
+| `--handoff:` | Session-ending summary: done, remaining, uncertain |
+
+Rules: work on ONE task at a time. Always write `--handoff:` before ending a session that involved work. Never truncate log data.
+
+---
+
+### Git Conventions
+
+#### Commit Format
+
+```
+[TYPE] User-facing impact in present tense
+
+- Technical detail 1
+- Technical detail 2
+
+Task: 001-P0--fix-login-redirect
+Decision: chose X because Y
+Tried: approach Z failed because W
+Discovered: system behaves unexpectedly when Q
+```
+
+#### Commit Types
+
+`[USER]` feature, `[FIX]` bug fix, `[PERF]` performance, `[TECH]` internal, `[DOCS]` docs, `[TEST]` tests
+
+#### Trailers
+
+`Task:`, `Decision:`, `Tried:`, `Discovered:` -- these are the permanent record. Extractable with `git log --format='%(trailers)'`. If the task file is lost, commit history still tells you what happened and why.
+
+#### Exploration Before Action
+
+Every skill that touches existing code explores first. `git log --oneline -- path/to/file.py` to see what changed, `git log --format='%(trailers:key=Task)'` to extract task refs. Understand how we got here before changing anything.
+
+---
+
+### Error Philosophy
+
+Errors are pay streaks, not obstacles. When something fails, the failure pattern is the most valuable output. Repeated failures in the same area are a trail to deeper misunderstanding -- in the design, the requirements, or the codebase. Follow the trail before routing around it. Log what the failure reveals before trying a workaround.
+
+Escalation is explicit. When blocked:
+
+1. Log `--blocker: NEED USER -- [clear question with options and tradeoffs]`
+2. Write a `--handoff:` block
+3. STOP. Do not guess. Do not continue with assumptions.
+
+---
+
+### Tools
+
+#### Semantic Search (grepai)
+
+If `.grepai/` exists in this project, **semantic code search is available**. Use it alongside Grep/Glob — they complement each other.
+
+```bash
+# Semantic search — finds code by meaning, not text
+grepai search "authentication middleware with token validation" --toon --compact -n 10
+
+# Call graph tracing — who calls what
+grepai trace callers "FunctionName" --json
+grepai trace callees "FunctionName" --json
+```
+
+**Use grepai when**: exploring unfamiliar code, finding implementations by purpose ("error retry logic", "database connection pooling"), searching for duplicates by intent, assessing blast radius of changes.
+
+**Use Grep/Glob when**: matching exact symbol names, file paths, specific string patterns, known identifiers.
+
+Setup: run `/devkit:init` which configures grepai (requires Ollama with `nomic-embed-text`).
+
+---
+
+### Knowledge Base
+
+Session learnings, architectural decisions, and solved problems live in `.devkit/knowledge/` as markdown files. Check here before re-solving something — a previous session may have already worked through it.
+
+---
+
+### Documentation Registry
+
+Reference documentation for this project. Check relevant docs before making assumptions.
+
+| Type | Path | Description |
+|------|------|-------------|
+| | | *(populated during project setup)* |

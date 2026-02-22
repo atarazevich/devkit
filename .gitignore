@@ -1,0 +1,13 @@
+# Runtime / session logs (Claude Code hook output)
+logs/
+docs/logs/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# DevKit dogfooding (this is the framework, not a project using it)
+.devkit/
+
+# OS
+.DS_Store
